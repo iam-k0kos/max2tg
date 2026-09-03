@@ -288,13 +288,25 @@ def _human_size(n: int) -> str:
 
 
 def create_max_client(
-    max_token: str, max_device_id: str, sender: TelegramSender, max_chat_ids: str | None = None,
-    debug: bool = False, reply_enabled: bool = False, proxy_url: str | None = None,
+    max_token: str,
+    max_device_id: str,
+    sender: TelegramSender,
+    max_chat_ids: str | None = None,
+    max_exclude_chat_ids: str | None = None,
+    debug: bool = False,
+    reply_enabled: bool = False,
+    proxy_url: str | None = None,
 ) -> MaxClient:
     client = MaxClient(token=max_token, device_id=max_device_id, debug=debug, chat_ids=max_chat_ids,
                         proxy_url=proxy_url)
     resolver = ContactResolver(client=client)
-
+        
+    excluded_chat_ids = {
+        chat_id.strip()
+        for chat_id in (max_exclude_chat_ids or "").split(",")
+        if chat_id.strip()
+    }
+    
     _first_connect = True
     _notif_count = 0
     _last_notif_time: datetime | None = None
@@ -363,6 +375,10 @@ def create_max_client(
         )
 
         if msg.is_self:
+            return
+
+        if str(msg.chat_id) in excluded_chat_ids:
+            log.info("Message from excluded chat %s skipped", msg.chat_id)
             return
 
         sender_label = escape(await resolver.resolve_user(msg.sender_id))
